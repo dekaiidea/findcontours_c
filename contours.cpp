@@ -557,8 +557,9 @@ void saveImageFile(const char * file_name, int h, int w, struct Node *hierarchy,
 }
 //==============================================================================//
 
-int main() {
-
+//calc result
+int* calccontours(cv::Mat& src,int& _contours_size)
+{
 	int **image;
 	int numrows = 0;
 	int numcols = 0;
@@ -566,8 +567,6 @@ int main() {
 	struct Border NBD;
 	struct Border LNBD;
 
-	//test cv
-	cv::Mat src = cv::imread("1.png", 0);
 	image = create2dArray(src.rows, src.cols);
 	for (int i = 0; i < src.rows; ++i)
 	{
@@ -685,19 +684,20 @@ int main() {
 	struct Point **contours = trimPoint2dVector(&contour_vector, &contour_size);
 	int *contours_index = trimIntVector(&contour_counter, &contour_index_size);
 	struct Node *hierarchy = trimNodeVector(&hierarchy_vector, &hierarchy_size);
-	
+
 	if (hierarchy_size != contour_index_size || hierarchy_size != contour_size)
 		printf("Storage offset error");
 
 	/*for (int i = 0; i < numrows; i++){
-		for (int j = 0; j < numcols; j++) {
-			printf("%3d ", image[i][j]);
-		}
-		printf("\n");
+	for (int j = 0; j < numcols; j++) {
+	printf("%3d ", image[i][j]);
+	}
+	printf("\n");
 	}*/
 	printHierarchy(hierarchy, hierarchy_size);
-	struct point2dVector centroid_vector;
-	initPoint2dVector(&centroid_vector);
+	/*struct point2dVector centroid_vector;
+	initPoint2dVector(&centroid_vector);*/
+	int* centroid_arr = (int *)malloc(sizeof(int)*contour_size*2);//2倍为行列坐标，前值为rows，后值为cols
 	//get centroid
 	for (int i = 0; i < contour_size; ++i) {
 		double sum_rows = 0;
@@ -709,14 +709,16 @@ int main() {
 		}
 		sum_rows = sum_rows / contours_index[i];
 		sum_cols = sum_cols / contours_index[i];
-		struct Point start;
+		centroid_arr[2*i] = sum_rows;
+		centroid_arr[2*i+1] = sum_cols;
+		/*struct Point start;
 		setPoint(&start, sum_rows, sum_cols);
 		struct Point *temp = (struct Point*)malloc(sizeof(struct Point));
-		temp[0] = start;
-		addPoint2dVector(&centroid_vector, temp);
+		temp[0] = start;*/
+		//addPoint2dVector(&centroid_vector, temp);
 	}
-
-	saveImageFile("test2.bmp", numrows, numcols, hierarchy, contours, contours_index, contour_size);
+	_contours_size = contour_size;
+	//saveImageFile("test2.bmp", numrows, numcols, hierarchy, contours, contours_index, contour_size);
 
 	//free malloc
 	free2dArray(image, numrows);
@@ -726,4 +728,17 @@ int main() {
 	}
 	free(contours);
 	free(contours_index);
+	return centroid_arr;
+}
+
+int main() {
+
+	//test cv
+	cv::Mat src = cv::imread("1.png", 0);
+	int contours_size = 0;
+	int* result =  calccontours(src, contours_size);
+	for (int i = 0; i < contours_size; ++i)
+	{
+		printf("%d %d\n",result[2*i], result[2*i+1]);
+	}
 }
