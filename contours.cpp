@@ -2,11 +2,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "opencv2/opencv.hpp"
+
 
 #define _CRT_SECURE_NO_WARNINGS
 #define HOLE_BORDER 1
 #define OUTER_BORDER 2
+#define USE_OPENCV
+
+#ifdef USE_OPENCV
+#include "opencv2/opencv.hpp"
+#endif // USE_OPENCV
+
+
+typedef unsigned char uchar;
 
 //typedef enum { false, true } bool;
 
@@ -394,7 +402,7 @@ void followBorder(int **image, int numrows, int numcols, int row, int col, struc
 //============================================================================//
 
 //calc result
-int* calccontours(cv::Mat& src,int& _contours_size)
+int* calccontours(uchar* _img_data,int _h,int _w,int& _contours_size)
 {
 	int **image;
 	int numrows = 0;
@@ -403,16 +411,20 @@ int* calccontours(cv::Mat& src,int& _contours_size)
 	struct Border NBD;
 	struct Border LNBD;
 
-	image = create2dArray(src.rows, src.cols);
-	for (int i = 0; i < src.rows; ++i)
+	image = create2dArray(_h, _w);
+	for (int i = 0; i < _h; ++i)
 	{
-		for (int j = 0; j < src.cols; ++j)
+		for (int j = 0; j < _w; ++j)
 		{
-			image[i][j] = src.at<uchar>(i, j);
+			image[i][j] = _img_data[i*_w+j];
+			//image[i][j] = src.at<uchar>(i, j);
+			//printf("%d ", image[i][j]);
 		}
+		//printf("\n");
 	}
-	numrows = src.rows;
-	numcols = src.cols;
+	int* tmp = image[0];
+	numrows = _h;
+	numcols = _w;
 
 	//memcpy(image, src.data, src.rows*src.cols);
 
@@ -536,8 +548,8 @@ int* calccontours(cv::Mat& src,int& _contours_size)
 		}
 		sum_rows = sum_rows / contours_index[i];
 		sum_cols = sum_cols / contours_index[i];
-		centroid_arr[2*i] = sum_rows;
-		centroid_arr[2*i+1] = sum_cols;
+		centroid_arr[2*i] = int(sum_rows);//当前轮廓形心纵坐标
+		centroid_arr[2*i+1] = int(sum_cols);//当前轮廓形心横坐标
 
 	}
 	_contours_size = contour_size;
@@ -553,14 +565,26 @@ int* calccontours(cv::Mat& src,int& _contours_size)
 	return centroid_arr;
 }
 
-int main() {
-
+int main() 
+{
+//待处理数据帧
+#ifdef USE_OPENCV
 	//test cv
 	cv::Mat src = cv::imread("1.png", 0);
+	//cv::threshold(src, src, 1, 255, 0);
+	uchar* img_data = (uchar*)malloc(sizeof(uchar)*src.cols*src.rows);
+	memcpy(img_data, src.data, src.rows*src.cols);
+#else
+	uchar* img_data = (uchar*)malloc(sizeof(uchar)*10*10);
+	memset(img_data, 0, 10*10);
+#endif // USE_OPENCV
 	int contours_size = 0;
-	int* result =  calccontours(src, contours_size);
+	//输入数据指针img_data，输入值图像高_h，图像宽_w，引用输入轮廓数量contours_size
+	//返回坐标依次存储在int数组中（需要手动释放内存）
+	int* result =  calccontours(img_data,src.rows,src.cols, contours_size);
 	for (int i = 0; i < contours_size; ++i)
 	{
-		printf("%d %d\n",result[2*i], result[2*i+1]);
+		printf("%d %d\n",result[2*i], result[2*i+1]);//打印坐标
 	}
+	free(result);//手动释放result
 }
