@@ -393,170 +393,6 @@ void followBorder(int **image, int numrows, int numcols, int row, int col, struc
 }
 //============================================================================//
 
-//======================InputOutputUI=========================================//
-int** readFile(const char * s, int *numrows, int *numcols) {
-	FILE * pFile;
-	char header[100];
-
-	pFile = fopen(s, "r");
-
-	if (pFile == NULL) {
-		perror("Error");
-		exit(EXIT_FAILURE);
-	}
-
-	int c = 0;
-	int r = 0;
-	int temp = 0;
-	int **image;
-	if (pFile != NULL) {
-		fscanf(pFile, "%s", header);
-		fscanf(pFile, "%d %d", &c, &r);
-		image = create2dArray(r, c);
-		fscanf(pFile, "%s", header);
-		for (int i = 0; i < r; i++) {
-			for (int j = 0; j < c; j++) {
-				fscanf(pFile, "%d", &temp);
-				if (temp != 0)
-					temp = 1;
-				image[i][j] = temp;
-			}
-		}
-	}
-
-	(*numrows) = r;
-	(*numcols) = c;
-
-	return  image;
-}
-
-//prints the hierarchy list
-void printHierarchy(struct Node *hierarchy, int hierarchy_size) {
-	for (int i = 0; i < hierarchy_size; i++) {
-		printf("%2d:: parent: %3d first child: %3d next sibling: %3d\n", i + 1, hierarchy[i].parent, hierarchy[i].first_child, hierarchy[i].next_sibling);
-//		cout << setw(2) << i + 1 << ":: parent: " << setw(3) << hierarchy[i].parent << " first child: " << setw(3) << hierarchy[i].first_child << " next sibling: " << setw(3) << hierarchy[i].next_sibling << endl;
-	}
-}
-
-void drawContour(struct Point **contours, int *contour_index, struct Pixel **color, int seq_num, struct Pixel pix) {
-	int r, c;
-	for (int i = 0; i < contour_index[seq_num]; i++) {
-		r = contours[seq_num][i].row;
-		c = contours[seq_num][i].col;
-		color[r][c] = pix;
-	}
-}
-
-struct Pixel chooseColor(int n) {
-
-	struct Pixel tmp;
-	switch (n % 6) {
-	case 0:
-		setPixel(&tmp, 255, 0, 0);
-		return tmp;
-	case 1:
-		setPixel(&tmp, 255, 127, 0);
-		return tmp;
-	case 2:
-		setPixel(&tmp, 255, 255, 0);
-		return tmp;
-	case 3:
-		setPixel(&tmp, 0, 255, 0);
-		return tmp;
-	case 4:
-		setPixel(&tmp, 0, 0, 255);
-		return tmp;
-	default:
-		setPixel(&tmp, 139, 0, 255);
-		return tmp;
-	}
-}
-
-//creates a 2D array of struct Pixel, which is the 3 channel image needed to convert the 2D vector contours to a drawn bmp file
-//uses DFS to step through the hierarchy tree, can be set to draw only the top 2 levels of contours, for example.
-struct Pixel** createChannels(int h, int w, struct Node *hierarchy, struct Point **contours, int *contour_index, int contour_size) {
-
-	struct Pixel **color;
-
-	if ((color = (struct Pixel**)malloc(sizeof(struct Pixel*)*h)) == NULL)
-		perror("malloc failed");
-
-	for (int i = 0; i < h; i++) {
-		if ((color[i] = (struct Pixel*)malloc(sizeof(struct Pixel)*w)) == NULL)
-			perror("malloc failed");
-		memset(color[i], 0, sizeof(struct Pixel)*w);
-	}
-	
-	for (int i = 1; i < contour_size; i++) {
-		drawContour(contours, contour_index, color, i, chooseColor(i));
-	}
-
-	return color;
-}
-
-//save image to bmp
-void saveImageFile(const char * file_name, int h, int w, struct Node *hierarchy, struct Point **contours, int *contour_index, int contour_size) {
-	FILE *f;
-
-	struct Pixel **color = createChannels(h, w, hierarchy, contours, contour_index, contour_size);
-
-	unsigned char *img = NULL;
-	int filesize = 54 + 3 * w*h;  //w is your image width, h is image height, both int
-
-	img = (unsigned char *)malloc(3 * w*h);
-	memset(img, 0, 3 * w*h);
-	int x, y;
-	unsigned char r, g, b;
-	for (int i = 0; i<h; i++) {
-		for (int j = 0; j<w; j++) {
-			y = (h - 1) - i; x = j;
-			r = color[i][j].red;
-			g = color[i][j].green;
-			b = color[i][j].blue;
-			/*	        if (r > 255) r=255;
-			if (g > 255) g=255;
-			if (b > 255) b=255;*/
-			img[(x + y * w) * 3 + 2] = (unsigned char)(r);
-			img[(x + y * w) * 3 + 1] = (unsigned char)(g);
-			img[(x + y * w) * 3 + 0] = (unsigned char)(b);
-		}
-	}
-
-	unsigned char bmpfileheader[14] = { 'B','M', 0,0,0,0, 0,0, 0,0, 54,0,0,0 };
-	unsigned char bmpinfoheader[40] = { 40,0,0,0, 0,0,0,0, 0,0,0,0, 1,0, 24,0 };
-	unsigned char bmppad[3] = { 0,0,0 };
-
-	bmpfileheader[2] = (unsigned char)(filesize);
-	bmpfileheader[3] = (unsigned char)(filesize >> 8);
-	bmpfileheader[4] = (unsigned char)(filesize >> 16);
-	bmpfileheader[5] = (unsigned char)(filesize >> 24);
-
-	bmpinfoheader[4] = (unsigned char)(w);
-	bmpinfoheader[5] = (unsigned char)(w >> 8);
-	bmpinfoheader[6] = (unsigned char)(w >> 16);
-	bmpinfoheader[7] = (unsigned char)(w >> 24);
-	bmpinfoheader[8] = (unsigned char)(h);
-	bmpinfoheader[9] = (unsigned char)(h >> 8);
-	bmpinfoheader[10] = (unsigned char)(h >> 16);
-	bmpinfoheader[11] = (unsigned char)(h >> 24);
-
-	f = fopen(file_name, "wb");
-	fwrite(bmpfileheader, 1, 14, f);
-	fwrite(bmpinfoheader, 1, 40, f);
-	for (int i = 0; i<h; i++) {
-		fwrite(img + (w*(i) * 3), 3, w, f);
-		fwrite(bmppad, 1, (4 - (w * 3) % 4) % 4, f);
-	}
-
-	free(img);
-	for (int i = 0; i < h; i++) {
-		free(color[i]);
-	}
-	free(color);
-	fclose(f);
-}
-//==============================================================================//
-
 //calc result
 int* calccontours(cv::Mat& src,int& _contours_size)
 {
@@ -688,15 +524,6 @@ int* calccontours(cv::Mat& src,int& _contours_size)
 	if (hierarchy_size != contour_index_size || hierarchy_size != contour_size)
 		printf("Storage offset error");
 
-	/*for (int i = 0; i < numrows; i++){
-	for (int j = 0; j < numcols; j++) {
-	printf("%3d ", image[i][j]);
-	}
-	printf("\n");
-	}*/
-	printHierarchy(hierarchy, hierarchy_size);
-	/*struct point2dVector centroid_vector;
-	initPoint2dVector(&centroid_vector);*/
 	int* centroid_arr = (int *)malloc(sizeof(int)*contour_size*2);//2倍为行列坐标，前值为rows，后值为cols
 	//get centroid
 	for (int i = 0; i < contour_size; ++i) {
@@ -711,14 +538,9 @@ int* calccontours(cv::Mat& src,int& _contours_size)
 		sum_cols = sum_cols / contours_index[i];
 		centroid_arr[2*i] = sum_rows;
 		centroid_arr[2*i+1] = sum_cols;
-		/*struct Point start;
-		setPoint(&start, sum_rows, sum_cols);
-		struct Point *temp = (struct Point*)malloc(sizeof(struct Point));
-		temp[0] = start;*/
-		//addPoint2dVector(&centroid_vector, temp);
+
 	}
 	_contours_size = contour_size;
-	//saveImageFile("test2.bmp", numrows, numcols, hierarchy, contours, contours_index, contour_size);
 
 	//free malloc
 	free2dArray(image, numrows);
