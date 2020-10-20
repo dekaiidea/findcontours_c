@@ -1,4 +1,13 @@
-﻿#include <stdio.h>
+﻿/**
+* @projectName c实现findcontours
+* @title     findcontours
+* @description    主要实现在calccontours()函数中，顺带在c中实现了vector容器的部分功能
+* @author xxx
+* @date   20201020
+* @version V1.0.0
+*/
+
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -7,7 +16,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define HOLE_BORDER 1
 #define OUTER_BORDER 2
-#define USE_OPENCV
+#define USE_OPENCV	//控制是否使用opencv库
 
 #ifdef USE_OPENCV
 #include "opencv2/opencv.hpp"
